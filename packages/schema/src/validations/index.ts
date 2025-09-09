@@ -10,5 +10,5 @@ export const setupValidationCustomMessages = () => {
   v.setSpecificMessage(v.nonEmpty, () => `この項目は必須です`, "ja");
 };
 
-export * from "./categorySchema";
-export * from "./productSchema";
+export * from "./category-schema";
+export * from "./product-schema";
