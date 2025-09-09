@@ -1,0 +1,41 @@
+{
+  "name": "@packages/schema",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "studio": "drizzle-kit studio",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "drizzle-kit": "^0.31.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@packages/constants": "workspace:^",
+    "@valibot/i18n": "^1.0.0",
+    "dotenv": "^17.2.2",
+    "drizzle-orm": "^0.44.5",
+    "drizzle-valibot": "^0.4.2",
+    "postgres": "^3.4.7",
+    "valibot": "^1.1.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": {
+        "workerd": "./dist/index.js",
+        "worker": "./dist/index.js",
+        "browser": "./dist/client.js",
+        "default": "./dist/index.js"
+      }
+    }
+  }
+}

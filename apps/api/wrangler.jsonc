@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-09",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "vars": {
+    "CORS_ORIGIN": "http://localhost:3000"
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "local-hyperdrive",
+      "localConnectionString": "postgresql://postgres:postgres@localhost:5432/fullstack_admin_db"
+    }
+  ]
+}

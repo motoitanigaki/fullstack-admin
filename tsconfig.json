@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/constants" },
+    { "path": "./packages/types" },
+    { "path": "./packages/schema" }
+  ]
+}

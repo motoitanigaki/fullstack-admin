@@ -1,0 +1,36 @@
+# OS / Editors
+.DS_Store
+.vscode/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Environment & Secrets
+# .env # Uncomment for actual development
+.env.*
+.env.local
+.env.*.local
+.envrc
+.dev.vars
+.dev.vars.*
+
+# Tooling
+**/.wrangler/
+.secret/
+.serena/
+.claude/
+.cursor/
+.mcp.json
+AGENTS.md
+
+# TypeScript
+*.tsbuildinfo
+

@@ -1,0 +1,19 @@
+{
+  "name": "fullstack-admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b",
+    "watch": "tsc -b -w",
+    "typecheck": "pnpm --filter \"@packages/*\" typecheck && pnpm --filter \"@apps/*\" typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.3",
+    "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "^0.44.5"
+    }
+  }
+}
