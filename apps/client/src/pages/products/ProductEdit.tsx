@@ -1,6 +1,6 @@
 import { status } from "@packages/constants";
 import { productUpdateSchema } from "@packages/schema";
-import { useNavigation, useSelect } from "@refinedev/core";
+import { useNavigation } from "@refinedev/core";
 import {
   DateTimeField,
   NumberField,
@@ -9,27 +9,11 @@ import {
   TextareaField,
   TextField,
 } from "@/components/resource-form";
+import { useCategorySelect } from "@/hooks/use-resource-select";
 
 export const ProductEdit = () => {
   const { list } = useNavigation();
-  const categories = useSelect({
-    resource: "categories",
-    optionLabel: "name",
-    optionValue: "id",
-    filters: [{ field: "isActive", operator: "eq", value: true }],
-    sorters: [{ field: "updatedAt", order: "desc" }],
-    pagination: { pageSize: 10 },
-    onSearch: (value: string) =>
-      value
-        ? [
-            {
-              field: "name",
-              operator: "contains",
-              value,
-            },
-          ]
-        : [],
-  });
+  const categories = useCategorySelect();
 
   return (
     <ResourceForm
@@ -41,7 +25,7 @@ export const ProductEdit = () => {
         label="Category"
         options={categories.options}
         onSearch={categories.onSearch}
-        valueParser={Number}
+        labelPath="category.name"
       />
       <TextField name="name" label="Name" />
       <TextareaField name="description" label="Description" />

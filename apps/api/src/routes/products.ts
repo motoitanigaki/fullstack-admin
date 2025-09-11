@@ -1,5 +1,6 @@
 import { vValidator } from "@hono/valibot-validator";
 import {
+  categories,
   productInsertSchema,
   products,
   productUpdateSchema,
@@ -72,8 +73,13 @@ const app = factory
     const base = db
       .select({
         ...getTableColumns(products),
+        category: {
+          id: categories.id,
+          name: categories.name,
+        },
       })
-      .from(products);
+      .from(products)
+      .innerJoin(categories, eq(products.categoryId, categories.id));
 
     const totalPromise = db
       .select({ count: count() })
@@ -102,6 +108,7 @@ const app = factory
 
     const product = await db.query.products.findFirst({
       where: and(eq(products.id, id)),
+      with: { category: true },
     });
 
     if (!product) {

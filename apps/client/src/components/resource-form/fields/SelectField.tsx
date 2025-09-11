@@ -1,4 +1,3 @@
-import { useSelect } from "@refinedev/core";
 import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -28,6 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useResourceForm } from "../ResourceFormContext";
 
 interface SelectOption {
   value: string;
@@ -36,96 +36,65 @@ interface SelectOption {
 
 interface SelectProps<
   TFieldValues extends FieldValues,
-  TName extends FieldPath<TFieldValues>,
+  TName extends FieldPath<TFieldValues>
 > {
   name: TName;
-  // Provide static options OR configure remote fetching via useSelect
   options?: SelectOption[];
-  remote?: {
-    resource: string;
-    optionLabel: string;
-    optionValue: string;
-    searchField?: string; // used to build onSearch filter
-    filters?: any[];
-    sorters?: any[];
-    pageSize?: number; // defaults to 10
-  };
   label: string;
   disabled?: boolean;
-  // Optional parser to transform the string value from the Select into desired type (e.g., number)
-  valueParser?: (value: string) => any;
   onSearch?: (term: string) => void;
   placeholder?: string;
+  labelPath?: string;
 }
 
 export function SelectField<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
 >({
   name,
   options,
-  remote,
   label,
   disabled = false,
-  valueParser,
-  // external data-handling (preferred): keep backward-compat with `remote`
+
   onSearch: onSearchProp,
   placeholder = "Select",
+  labelPath,
 }: SelectProps<TFieldValues, TName>) {
-  const { control } = useFormContext<TFieldValues>();
+  const form = useFormContext<TFieldValues>();
+  const { record } = useResourceForm();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Prefer external options/onSearch when provided; otherwise allow legacy `remote`
-  const hasExternal = options !== undefined || onSearchProp !== undefined;
+  const getByPath = (obj: unknown, path?: string): string | undefined => {
+    if (!obj || !path) return undefined;
+    return path.split(".").reduce<unknown>((acc, key) => {
+      if (acc && typeof acc === "object")
+        return (acc as Record<string, unknown>)[key];
+      return undefined;
+    }, obj) as string | undefined;
+  };
 
-  // Call hook but disabled when using external inputs
-  const remoteSelect = useSelect({
-    resource: remote?.resource ?? "",
-    optionLabel: remote?.optionLabel as any,
-    optionValue: remote?.optionValue as any,
-    filters: remote?.filters,
-    sorters: remote?.sorters,
-    pagination: { pageSize: remote?.pageSize ?? 10 },
-    onSearch: remote?.searchField
-      ? (value: string) =>
-          value
-            ? [
-                {
-                  field: remote.searchField as any,
-                  operator: "contains",
-                  value,
-                },
-              ]
-            : []
-      : undefined,
-    queryOptions: { enabled: !!remote && !hasExternal },
-  });
+  const list = useMemo<SelectOption[]>(
+    () => (Array.isArray(options) ? options : []),
+    [options]
+  );
 
-  const resolvedOptions: SelectOption[] = useMemo(() => {
-    const normalize = (arr: any[]): SelectOption[] =>
-      (arr ?? []).map((o) => ({
-        label: String(o.label),
-        value: String(o.value),
-      }));
-
-    if (!hasExternal && remote) {
-      return normalize((remoteSelect as any).options ?? []);
-    }
-    const base = normalize(options ?? []);
-    if (!search) return base.slice(0, 10);
-    const lowered = search.toLowerCase();
-    const filtered = base.filter((o) =>
-      o.label.toLowerCase().includes(lowered),
-    );
-    return filtered.slice(0, 10);
-  }, [hasExternal, remote, remoteSelect, options, search]);
+  const mergedOptions = (() => {
+    const current = form.getValues(name) as unknown as string | undefined;
+    if (!current) return list;
+    const has = list.some((o) => o.value === current);
+    if (has) return list;
+    const recLabel = getByPath(record, labelPath);
+    if (typeof recLabel === "string" && recLabel.length > 0)
+      return [{ value: current, label: recLabel }, ...list];
+    return list;
+  })();
 
   // no explicit loading state to keep component simple
 
   return (
     <FormField<TFieldValues, TName>
-      control={control}
+      control={form.control}
       name={name}
       render={({ field }) => (
         <FormItem>
@@ -142,16 +111,13 @@ export function SelectField<
                       type="text"
                       className="w-full"
                       disabled
-                      value={(() => {
-                        const current =
-                          field.value === undefined || field.value === null
-                            ? undefined
-                            : String(field.value);
-                        const list = resolvedOptions;
-                        return (
-                          list.find((o) => o.value === current)?.label ?? ""
-                        );
-                      })()}
+                      value={
+                        getByPath(record, labelPath) ??
+                        list.find(
+                          (o) => o.value === (field.value as string | undefined)
+                        )?.label ??
+                        ""
+                      }
                       readOnly
                     />
                   ) : (
@@ -164,16 +130,8 @@ export function SelectField<
                           className="w-full justify-between"
                           disabled={disabled}
                         >
-                          {(() => {
-                            const current =
-                              field.value === undefined || field.value === null
-                                ? undefined
-                                : String(field.value);
-                            const selectedLabel = resolvedOptions.find(
-                              (o) => o.value === current,
-                            )?.label;
-                            return selectedLabel ?? placeholder;
-                          })()}
+                          {mergedOptions.find((o) => o.value === field.value)
+                            ?.label ?? placeholder}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-0">
@@ -184,31 +142,31 @@ export function SelectField<
                             onValueChange={(val) => {
                               setSearch(val);
                               if (onSearchProp) onSearchProp(val);
-                              else if (!hasExternal && remote?.searchField) {
-                                // Delegate to refine's server-side search
-                                (remoteSelect as any).onSearch?.(val);
-                              }
                             }}
                           />
                           <CommandEmpty>Nothing found.</CommandEmpty>
                           <CommandList>
                             <CommandGroup>
-                              {resolvedOptions.map((option) => {
+                              {(onSearchProp
+                                ? mergedOptions
+                                : mergedOptions.filter((o) =>
+                                    o.label
+                                      .toLowerCase()
+                                      .includes(search.toLowerCase())
+                                  )
+                              ).map((option) => {
                                 const isSel =
-                                  (field.value === undefined ||
-                                  field.value === null
-                                    ? undefined
-                                    : String(field.value)) === option.value;
+                                  String(field.value ?? "") === option.value;
                                 return (
                                   <CommandItem
                                     key={option.value}
                                     value={option.label}
                                     onSelect={() => {
-                                      field.onChange(
-                                        valueParser
-                                          ? valueParser(option.value)
-                                          : option.value,
-                                      );
+                                      const v = option.value;
+                                      const next = /^\d+$/.test(v)
+                                        ? Number(v)
+                                        : v;
+                                      field.onChange(next as any);
                                       setOpen(false);
                                     }}
                                   >

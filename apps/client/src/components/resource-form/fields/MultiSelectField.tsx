@@ -27,6 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useResourceForm } from "../ResourceFormContext";
 
 interface SelectOption {
   value: string;
@@ -38,13 +39,13 @@ interface MultiSelectProps<
   TName extends FieldPath<TFieldValues>,
 > {
   name: TName;
-  options: SelectOption[];
+  options?: SelectOption[];
   label: string;
   disabled?: boolean;
   maxVisibleBadges?: number;
+  labelPath?: string; // e.g., "exams[].name" to hydrate selected labels from record
   onSearch?: (term: string) => void;
   placeholder?: string;
-  valueParser?: (value: string) => any;
 }
 
 export function MultiSelectField<
@@ -56,32 +57,89 @@ export function MultiSelectField<
   label,
   disabled = false,
   maxVisibleBadges = 5,
+  labelPath,
   onSearch,
   placeholder = "Select",
-  valueParser,
 }: MultiSelectProps<TFieldValues, TName>) {
-  const { control } = useFormContext<TFieldValues>();
+  const { control, getValues } = useFormContext<TFieldValues>();
+  const { record } = useResourceForm();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [showAllBadges, setShowAllBadges] = useState(false);
-  const normalizedOptions = useMemo<{ value: string; label: string }[]>(
+
+  const list = useMemo<Required<SelectOption>[]>(
     () =>
-      options.map((o) => ({ value: String(o.value), label: String(o.label) })),
+      Array.isArray(options)
+        ? options.map((o) => ({
+            value: String(o.value),
+            label: String(o.label),
+          }))
+        : [],
     [options],
   );
 
-  const labelMap = useMemo(
-    () => new Map(normalizedOptions.map((o) => [o.value, o.label])),
-    [normalizedOptions],
-  );
+  const getByPath = (obj: unknown, path?: string): unknown => {
+    if (!obj || !path) return undefined;
+    return path.split(".").reduce<unknown>((acc, key) => {
+      if (acc && typeof acc === "object")
+        return (acc as Record<string, unknown>)[key];
+      return undefined;
+    }, obj);
+  };
+
+  const getArrayAndRest = (
+    obj: unknown,
+    path: string | undefined,
+  ): { arr: unknown[]; rest?: string } | null => {
+    if (!obj || !path || !path.includes("[]")) return null;
+    const [arrPath, restPath] = path.split("[].");
+    const arr = getByPath(obj, arrPath);
+    if (!Array.isArray(arr)) return { arr: [], rest: restPath };
+    return { arr, rest: restPath };
+  };
+
+  const initialSelected: string[] = (() => {
+    const v = getValues(name) as unknown;
+    return Array.isArray(v) ? (v as unknown[]).map((x) => String(x)) : [];
+  })();
+
+  const recordArrInfo = getArrayAndRest(record, labelPath);
+  const recordList = recordArrInfo?.arr ?? [];
+  const elementLabelSubPath = recordArrInfo?.rest;
+
+  const extrasFromRecord: SelectOption[] = initialSelected
+    .map((id) => {
+      const found = recordList.find((it) =>
+        it && typeof it === "object"
+          ? (it as Record<string, unknown>).id ===
+            (Number.isNaN(Number(id)) ? id : Number(id))
+          : false,
+      ) as Record<string, unknown> | undefined;
+      const labelVal = elementLabelSubPath
+        ? getByPath(found, elementLabelSubPath)
+        : (found?.name as unknown);
+      const label = typeof labelVal === "string" ? labelVal : undefined;
+      if (typeof label === "string" && label.length > 0)
+        return { value: id, label } as SelectOption;
+      return undefined;
+    })
+    .filter(Boolean) as SelectOption[];
+
+  const mergedOptions = (() => {
+    const map = new Map<string, SelectOption>();
+    for (const o of list) map.set(o.value, o);
+    for (const o of extrasFromRecord)
+      if (!map.has(o.value)) map.set(o.value, o);
+    return Array.from(map.values());
+  })();
+
+  const labelMap = new Map(mergedOptions.map((o) => [o.value, o.label]));
 
   const resolvedOptions = useMemo(() => {
-    if (!search) return normalizedOptions;
+    if (!search) return mergedOptions;
     const lowered = search.toLowerCase();
-    return normalizedOptions.filter((o) =>
-      o.label.toLowerCase().includes(lowered),
-    );
-  }, [normalizedOptions, search]);
+    return mergedOptions.filter((o) => o.label.toLowerCase().includes(lowered));
+  }, [mergedOptions, search]);
 
   return (
     <FormField<TFieldValues, TName>
@@ -102,8 +160,9 @@ export function MultiSelectField<
           if (selectedKeys.includes(value)) {
             field.onChange(current.filter((v) => String(v) !== value));
           } else {
-            const parsed = valueParser ? valueParser(value) : value;
-            field.onChange([...current, parsed]);
+            // Try to keep numeric ids numeric (similar to SelectField)
+            const next = /^\d+$/.test(value) ? Number(value) : value;
+            field.onChange([...current, next]);
           }
         };
         const remove = (value: string) =>

@@ -18,7 +18,7 @@ export type FilterType =
 
 export type FilterDraft =
   | { type: "textContains"; value: string }
-  | { type: "selectEquals"; value?: string }
+  | { type: "selectEquals"; value?: string; label?: string }
   | { type: "dateTimeRange"; min?: string; max?: string }
   | { type: "numberRange"; min?: string; max?: string };
 
@@ -61,7 +61,11 @@ export const FILTERS: Record<FilterType, Spec> = {
                       key={o.value}
                       value={o.label}
                       onSelect={() =>
-                        onChange({ type: "selectEquals", value: o.value })
+                        onChange({
+                          type: "selectEquals",
+                          value: o.value,
+                          label: o.label,
+                        })
                       }
                     >
                       <Check
@@ -85,7 +89,9 @@ export const FILTERS: Record<FilterType, Spec> = {
         ? [{ field, operator: "eq", value: d.value }]
         : [],
     formatLabel: (field, d) =>
-      d.type === "selectEquals" ? `${field}: ${d.value ?? ""}` : field,
+      d.type === "selectEquals"
+        ? `${field}: ${d.label ?? d.value ?? ""}`
+        : field,
   },
   textContains: {
     renderInput: ({ draft, onChange }) => (

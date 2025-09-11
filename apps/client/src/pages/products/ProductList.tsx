@@ -10,7 +10,8 @@ import {
   type TableAction,
 } from "@/components/resource-table";
 
-const columnHelper = createColumnHelper<Product>();
+type ProductWithCategory = Product & { category: { id: number; name: string } };
+const columnHelper = createColumnHelper<ProductWithCategory>();
 
 export const ProductList = () => {
   const { edit, create } = useNavigation();
@@ -41,7 +42,8 @@ export const ProductList = () => {
         enableSorting: true,
         meta: { filter: { type: "textContains" }, label: "Name" },
       }),
-      columnHelper.accessor("categoryId", {
+      columnHelper.accessor("category.name", {
+        id: "categoryId",
         enableSorting: true,
         meta: {
           label: "Category",
@@ -51,10 +53,11 @@ export const ProductList = () => {
             onSearch: categories.onSearch,
           },
         },
-        cell: ({ getValue }) => {
-          const idStr = String(getValue());
-          return <LinkCell to={`/categories/edit/${idStr}`}>{idStr}</LinkCell>;
-        },
+        cell: ({ row, getValue }) => (
+          <LinkCell to={`/categories/edit/${row.original.category.id}`}>
+            {getValue<string>()}
+          </LinkCell>
+        ),
       }),
       columnHelper.accessor("price", {
         enableSorting: true,
@@ -100,7 +103,7 @@ export const ProductList = () => {
     }
   };
 
-  const actions: TableAction<Product>[] = [
+  const actions: TableAction<ProductWithCategory>[] = [
     { label: "Edit", onClick: (record) => edit("products", record.id) },
     { label: "Delete", onClick: handleDelete, variant: "danger" },
   ];

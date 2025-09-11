@@ -5,9 +5,11 @@ import type { BaseSchema, InferInput } from "valibot";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { ResourceFormProvider } from "./ResourceFormContext";
 
 interface Props<TSchema extends BaseSchema<any, any, any>> {
   children: ReactNode;
+  resource?: string;
   schema: TSchema;
   onCancel?: () => void;
   isLoading?: boolean;
@@ -16,6 +18,7 @@ interface Props<TSchema extends BaseSchema<any, any, any>> {
 
 export function ResourceForm<TSchema extends BaseSchema<any, any, any>>({
   children,
+  resource,
   schema,
   onCancel,
   isLoading = false,
@@ -26,6 +29,9 @@ export function ResourceForm<TSchema extends BaseSchema<any, any, any>>({
   const form = useForm<FormData>({
     resolver: valibotResolver(schema),
   });
+  const refineCore: any = (form as any).refineCore;
+  const record =
+    refineCore?.queryResult?.data?.data ?? refineCore?.query?.data?.data;
 
   return (
     <Form {...form}>
@@ -40,7 +46,9 @@ export function ResourceForm<TSchema extends BaseSchema<any, any, any>>({
           onSubmit={form.handleSubmit(form.refineCore.onFinish)}
           className="space-y-4"
         >
-          {children}
+          <ResourceFormProvider value={{ resource, record }}>
+            {children}
+          </ResourceFormProvider>
 
           <div className="grid grid-cols-5 gap-4">
             <div className="col-span-1"></div>
