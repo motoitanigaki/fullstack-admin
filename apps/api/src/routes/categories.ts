@@ -1,14 +1,49 @@
 import { vValidator } from "@hono/valibot-validator";
 import {
-  categoryTable,
   categoryInsertSchema,
+  categoryTable,
   categoryUpdateSchema,
 } from "@packages/schema";
-import { and, count, eq, getTableColumns } from "drizzle-orm";
+import { and, asc, count, eq, getTableColumns } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { factory } from "../types/env";
+import { csvEscape, csvResponse } from "../utils/csv";
 import { setTotalHeaders, successResponse } from "../utils/response";
-import { parseSimpleRest } from "../utils/simple-rest";
+import { parseSimpleRest, type SimpleRestConfig } from "../utils/simple-rest";
+
+const categoryRestConfig: SimpleRestConfig = {
+  fields: {
+    id: {
+      column: categoryTable.id,
+      type: "number",
+      sort: true,
+      filters: ["eq"],
+    },
+    name: {
+      column: categoryTable.name,
+      type: "string",
+      sort: true,
+      filters: ["like"],
+    },
+    isActive: {
+      column: categoryTable.isActive,
+      type: "boolean",
+      sort: true,
+      filters: ["eq"],
+    },
+    createdAt: {
+      column: categoryTable.createdAt,
+      type: "date",
+      sort: true,
+    },
+    updatedAt: {
+      column: categoryTable.updatedAt,
+      type: "date",
+      sort: true,
+    },
+  },
+  defaultSort: [{ field: "id", order: "asc" }],
+};
 
 const app = factory
   .createApp()
@@ -18,39 +53,7 @@ const app = factory
 
     const { where, orderBy, limit, offset } = parseSimpleRest(
       url.searchParams,
-      {
-        fields: {
-          id: {
-            column: categoryTable.id,
-            type: "number",
-            sort: true,
-            filters: ["eq"],
-          },
-          name: {
-            column: categoryTable.name,
-            type: "string",
-            sort: true,
-            filters: ["like"],
-          },
-          isActive: {
-            column: categoryTable.isActive,
-            type: "boolean",
-            sort: true,
-            filters: ["eq"],
-          },
-          createdAt: {
-            column: categoryTable.createdAt,
-            type: "date",
-            sort: true,
-          },
-          updatedAt: {
-            column: categoryTable.updatedAt,
-            type: "date",
-            sort: true,
-          },
-        },
-        defaultSort: [{ field: "id", order: "asc" }],
-      }
+      categoryRestConfig,
     );
 
     const base = db
@@ -76,6 +79,32 @@ const app = factory
 
     setTotalHeaders(c, total[0]?.count ?? 0);
     return c.json(successResponse(categories));
+  })
+
+  .get("/export", async (c) => {
+    const db = c.get("db");
+    const url = new URL(c.req.url);
+
+    const { where } = parseSimpleRest(url.searchParams, categoryRestConfig);
+
+    const colsRec = getTableColumns(categoryTable);
+    const columns = Object.keys(colsRec);
+    const maxRows = 1000;
+    // TODO: Large exports should fall back to background job + R2 artifact
+    const baseQuery = db.select({ ...colsRec }).from(categoryTable);
+    const rows = await (where ? baseQuery.where(where) : baseQuery)
+      .orderBy(asc(categoryTable.id))
+      .limit(maxRows);
+
+    type ColKey = keyof typeof colsRec;
+    const colKeys = columns as ColKey[];
+    const header = `${columns.join(",")}\n`;
+    const body = `${rows
+      .map((r) => colKeys.map((k) => csvEscape(r[k])).join(","))
+      .join("\n")}\n`;
+    const csv = header + body;
+    const filename = `categories-${new Date().toISOString().slice(0, 10)}.csv`;
+    return csvResponse(c, filename, csv);
   })
 
   .get("/:id", async (c) => {

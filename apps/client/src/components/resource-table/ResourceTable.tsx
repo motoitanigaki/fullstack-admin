@@ -38,6 +38,7 @@ import {
   type FilterType,
   type Option,
 } from "./filters";
+import { ResourceTableExport } from "./ResourceTableExport";
 import { ResourceTableFilterBadges } from "./ResourceTableFilterBadges";
 import { ResourceTableFilterContent } from "./ResourceTableFilterContent";
 import { ResourceTablePagination } from "./ResourceTablePagination";
@@ -191,6 +192,10 @@ export function ResourceTable<TData extends BaseRecord = BaseRecord>({
           <Breadcrumb />
         </div>
         <div className="flex items-center gap-2">
+          <ResourceTableExport
+            resource={resource}
+            appliedFilters={appliedFilters}
+          />
           <ResourceTableViewOptions
             table={reactTable}
             columnLabels={reactTable

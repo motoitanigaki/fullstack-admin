@@ -6,11 +6,62 @@ import {
   productTagTable,
   productUpdateSchema,
 } from "@packages/schema";
-import { and, count, eq, getTableColumns } from "drizzle-orm";
+import { and, asc, count, eq, getTableColumns, gt } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { factory } from "../types/env";
+import { csvEscape, csvResponse } from "../utils/csv";
 import { setTotalHeaders, successResponse } from "../utils/response";
-import { parseSimpleRest } from "../utils/simple-rest";
+import { parseSimpleRest, type SimpleRestConfig } from "../utils/simple-rest";
+
+const productRestConfig: SimpleRestConfig = {
+  fields: {
+    id: {
+      column: productTable.id,
+      type: "number",
+      sort: true,
+      filters: ["eq"],
+    },
+    categoryId: {
+      column: productTable.categoryId,
+      type: "number",
+      sort: true,
+      filters: ["eq"],
+    },
+    name: {
+      column: productTable.name,
+      type: "string",
+      sort: true,
+      filters: ["like"],
+    },
+    status: {
+      column: productTable.status,
+      type: "string",
+      sort: true,
+      filters: ["like", "eq"],
+    },
+    price: {
+      column: productTable.price,
+      type: "number",
+      sort: true,
+      filters: ["gte", "lte"],
+    },
+    stock: {
+      column: productTable.stock,
+      type: "number",
+      sort: true,
+      filters: ["gte", "lte"],
+    },
+    availableAt: {
+      column: productTable.availableAt,
+      type: "date",
+      sort: true,
+      filters: ["gte", "lte"],
+    },
+    createdAt: { column: productTable.createdAt, type: "date", sort: true },
+    updatedAt: { column: productTable.updatedAt, type: "date", sort: true },
+  },
+  defaultSort: [{ field: "id", order: "asc" }],
+};
 
 const app = factory
   .createApp()
@@ -20,63 +71,7 @@ const app = factory
 
     const { where, orderBy, limit, offset } = parseSimpleRest(
       url.searchParams,
-      {
-        fields: {
-          id: {
-            column: productTable.id,
-            type: "number",
-            sort: true,
-            filters: ["eq"],
-          },
-          categoryId: {
-            column: productTable.categoryId,
-            type: "number",
-            sort: true,
-            filters: ["eq"],
-          },
-          name: {
-            column: productTable.name,
-            type: "string",
-            sort: true,
-            filters: ["like"],
-          },
-          status: {
-            column: productTable.status,
-            type: "string",
-            sort: true,
-            filters: ["like", "eq"],
-          },
-          price: {
-            column: productTable.price,
-            type: "number",
-            sort: true,
-            filters: ["gte", "lte"],
-          },
-          stock: {
-            column: productTable.stock,
-            type: "number",
-            sort: true,
-            filters: ["gte", "lte"],
-          },
-          availableAt: {
-            column: productTable.availableAt,
-            type: "date",
-            sort: true,
-            filters: ["gte", "lte"],
-          },
-          createdAt: {
-            column: productTable.createdAt,
-            type: "date",
-            sort: true,
-          },
-          updatedAt: {
-            column: productTable.updatedAt,
-            type: "date",
-            sort: true,
-          },
-        },
-        defaultSort: [{ field: "id", order: "asc" }],
-      }
+      productRestConfig,
     );
 
     const base = db
@@ -107,6 +102,32 @@ const app = factory
 
     setTotalHeaders(c, total[0]?.count ?? 0);
     return c.json(successResponse(products));
+  })
+
+  .get("/export", async (c) => {
+    const db = c.get("db");
+    const url = new URL(c.req.url);
+
+    const { where } = parseSimpleRest(url.searchParams, productRestConfig);
+
+    const colsRec = getTableColumns(productTable);
+    const columns = Object.keys(colsRec);
+    const maxRows = 1000;
+    // TODO: Large exports should fall back to background job + R2 artifact
+    const baseQuery = db.select({ ...colsRec }).from(productTable);
+    const rows = await (where ? baseQuery.where(where) : baseQuery)
+      .orderBy(asc(productTable.id))
+      .limit(maxRows);
+
+    type ColKey = keyof typeof colsRec;
+    const colKeys = columns as ColKey[];
+    const header = `${columns.join(",")}\n`;
+    const body = `${rows
+      .map((r) => colKeys.map((k) => csvEscape(r[k])).join(","))
+      .join("\n")}\n`;
+    const csv = header + body;
+    const filename = `products-${new Date().toISOString().slice(0, 10)}.csv`;
+    return csvResponse(c, filename, csv);
   })
 
   .get("/:id", async (c) => {
@@ -140,7 +161,7 @@ const app = factory
           id: pt.tag.id,
           name: pt.tag.name,
         })),
-      })
+      }),
     );
   })
 
@@ -158,7 +179,7 @@ const app = factory
       await db
         .insert(productTagTable)
         .values(
-          tagIds.map((tagId: number) => ({ productId: product.id, tagId }))
+          tagIds.map((tagId: number) => ({ productId: product.id, tagId })),
         );
     }
 

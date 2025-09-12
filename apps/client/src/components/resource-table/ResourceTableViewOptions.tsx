@@ -31,9 +31,14 @@ export function ResourceTableViewOptions<TData>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={className}>
+        <Button
+          variant="outline"
+          size="icon"
+          className={className}
+          aria-label="View options"
+          title="View options"
+        >
           <Settings2 className="h-4 w-4" />
-          {"View"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

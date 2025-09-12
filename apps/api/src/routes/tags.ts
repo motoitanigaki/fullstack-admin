@@ -1,10 +1,24 @@
 import { vValidator } from "@hono/valibot-validator";
 import { tagInsertSchema, tagTable, tagUpdateSchema } from "@packages/schema";
-import { and, count, eq, getTableColumns } from "drizzle-orm";
+import { and, asc, count, eq, getTableColumns } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { factory } from "../types/env";
+import { csvEscape, csvResponse } from "../utils/csv";
 import { setTotalHeaders, successResponse } from "../utils/response";
-import { parseSimpleRest } from "../utils/simple-rest";
+import { parseSimpleRest, type SimpleRestConfig } from "../utils/simple-rest";
+
+const tagRestConfig: SimpleRestConfig = {
+  fields: {
+    id: { column: tagTable.id, type: "number", sort: true, filters: ["eq"] },
+    name: {
+      column: tagTable.name,
+      type: "string",
+      sort: true,
+      filters: ["like"],
+    },
+  },
+  defaultSort: [{ field: "id", order: "asc" }],
+};
 
 const app = factory
   .createApp()
@@ -14,23 +28,7 @@ const app = factory
 
     const { where, orderBy, limit, offset } = parseSimpleRest(
       url.searchParams,
-      {
-        fields: {
-          id: {
-            column: tagTable.id,
-            type: "number",
-            sort: true,
-            filters: ["eq"],
-          },
-          name: {
-            column: tagTable.name,
-            type: "string",
-            sort: true,
-            filters: ["like"],
-          },
-        },
-        defaultSort: [{ field: "id", order: "asc" }],
-      }
+      tagRestConfig,
     );
 
     const base = db.select({ ...getTableColumns(tagTable) }).from(tagTable);
@@ -49,6 +47,31 @@ const app = factory
 
     setTotalHeaders(c, total[0]?.count ?? 0);
     return c.json(successResponse(tags));
+  })
+  .get("/export", async (c) => {
+    const db = c.get("db");
+    const url = new URL(c.req.url);
+
+    const { where } = parseSimpleRest(url.searchParams, tagRestConfig);
+
+    const colsRec = getTableColumns(tagTable);
+    const columns = Object.keys(colsRec);
+    const maxRows = 1000;
+    // TODO: Large exports should fall back to background job + R2 artifact
+    const baseQuery = db.select({ ...colsRec }).from(tagTable);
+    const rows = await (where ? baseQuery.where(where) : baseQuery)
+      .orderBy(asc(tagTable.id))
+      .limit(maxRows);
+
+    type ColKey = keyof typeof colsRec;
+    const colKeys = columns as ColKey[];
+    const header = `${columns.join(",")}\n`;
+    const body = `${rows
+      .map((r) => colKeys.map((k) => csvEscape(r[k])).join(","))
+      .join("\n")}\n`;
+    const csv = header + body;
+    const filename = `tags-${new Date().toISOString().slice(0, 10)}.csv`;
+    return csvResponse(c, filename, csv);
   })
 
   .get("/:id", async (c) => {

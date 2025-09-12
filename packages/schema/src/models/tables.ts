@@ -12,7 +12,7 @@ export const categoryTable = table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [t.index("idx_categories_name").on(table.name)]
+  (table) => [t.index("idx_categories_name").on(table.name)],
 );
 
 export const productTable = table(
@@ -35,7 +35,7 @@ export const productTable = table(
   (table) => [
     t.index("idx_products_name").on(table.name),
     t.index("idx_products_category").on(table.categoryId),
-  ]
+  ],
 );
 
 export const tagTable = table(
@@ -44,7 +44,7 @@ export const tagTable = table(
     id: t.serial("id").primaryKey(),
     name: t.text("name").notNull(),
   },
-  (table) => [t.index("idx_tags_name").on(table.name)]
+  (table) => [t.index("idx_tags_name").on(table.name)],
 );
 
 export const productTagTable = table(
@@ -64,5 +64,5 @@ export const productTagTable = table(
       name: "product_tag_pk",
       columns: [table.productId, table.tagId],
     }),
-  ]
+  ],
 );
