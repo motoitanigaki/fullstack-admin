@@ -3,7 +3,7 @@ import { pgTable as table } from "drizzle-orm/pg-core";
 import { statusEnum } from "./enums";
 import { createdAt, updatedAt } from "./helpers";
 
-export const categories = table(
+export const categoryTable = table(
   "categories",
   {
     id: t.serial("id").primaryKey(),
@@ -15,14 +15,14 @@ export const categories = table(
   (table) => [t.index("idx_categories_name").on(table.name)]
 );
 
-export const products = table(
+export const productTable = table(
   "products",
   {
     id: t.serial("id").primaryKey(),
     categoryId: t
       .integer("category_id")
       .notNull()
-      .references(() => categories.id),
+      .references(() => categoryTable.id),
     name: t.text("name").notNull(),
     description: t.text("description"),
     price: t.numeric("price").notNull(),
@@ -38,7 +38,7 @@ export const products = table(
   ]
 );
 
-export const tags = table(
+export const tagTable = table(
   "tags",
   {
     id: t.serial("id").primaryKey(),
@@ -47,17 +47,22 @@ export const tags = table(
   (table) => [t.index("idx_tags_name").on(table.name)]
 );
 
-export const productTags = table(
+export const productTagTable = table(
   "product_tags",
   {
     productId: t
       .integer("product_id")
       .notNull()
-      .references(() => products.id),
+      .references(() => productTable.id),
     tagId: t
       .integer("tag_id")
       .notNull()
-      .references(() => tags.id),
+      .references(() => tagTable.id),
   },
-  (table) => [t.primaryKey({ columns: [table.productId, table.tagId] })]
+  (table) => [
+    t.primaryKey({
+      name: "product_tag_pk",
+      columns: [table.productId, table.tagId],
+    }),
+  ]
 );

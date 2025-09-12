@@ -14,6 +14,7 @@ import { notificationProvider } from "@/providers/notification-provider";
 import { Layout } from "./components/layout";
 import { CategoryCreate, CategoryEdit, CategoryList } from "./pages/categories";
 import { ProductCreate, ProductEdit, ProductList } from "./pages/products";
+import { TagCreate, TagEdit, TagList } from "./pages/tags";
 
 function App() {
   return (
@@ -44,6 +45,12 @@ function App() {
                 create: "/categories/create",
                 edit: "/categories/edit/:id",
               },
+              {
+                name: "tags",
+                list: "/tags",
+                create: "/tags/create",
+                edit: "/tags/edit/:id",
+              },
             ]}
           >
             <Routes>
@@ -67,6 +74,11 @@ function App() {
                   <Route index element={<CategoryList />} />
                   <Route path="create" element={<CategoryCreate />} />
                   <Route path="edit/:id" element={<CategoryEdit />} />
+                </Route>
+                <Route path="/tags">
+                  <Route index element={<TagList />} />
+                  <Route path="create" element={<TagCreate />} />
+                  <Route path="edit/:id" element={<TagEdit />} />
                 </Route>
               </Route>
             </Routes>

@@ -36,7 +36,7 @@ interface SelectOption {
 
 interface SelectProps<
   TFieldValues extends FieldValues,
-  TName extends FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues>,
 > {
   name: TName;
   options?: SelectOption[];
@@ -49,7 +49,7 @@ interface SelectProps<
 
 export function SelectField<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
   name,
   options,
@@ -76,7 +76,7 @@ export function SelectField<
 
   const list = useMemo<SelectOption[]>(
     () => (Array.isArray(options) ? options : []),
-    [options]
+    [options],
   );
 
   const mergedOptions = (() => {
@@ -114,7 +114,8 @@ export function SelectField<
                       value={
                         getByPath(record, labelPath) ??
                         list.find(
-                          (o) => o.value === (field.value as string | undefined)
+                          (o) =>
+                            o.value === (field.value as string | undefined),
                         )?.label ??
                         ""
                       }
@@ -152,7 +153,7 @@ export function SelectField<
                                 : mergedOptions.filter((o) =>
                                     o.label
                                       .toLowerCase()
-                                      .includes(search.toLowerCase())
+                                      .includes(search.toLowerCase()),
                                   )
                               ).map((option) => {
                                 const isSel =

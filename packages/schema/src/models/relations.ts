@@ -1,29 +1,34 @@
 import { relations } from "drizzle-orm";
-import { categories, products, productTags, tags } from "./tables";
+import {
+  categoryTable,
+  productTable,
+  productTagTable,
+  tagTable,
+} from "./tables";
 
-export const categoriesRelations = relations(categories, ({ many }) => ({
-  products: many(products),
+export const categoryRelations = relations(categoryTable, ({ many }) => ({
+  products: many(productTable),
 }));
 
-export const productsRelations = relations(products, ({ one, many }) => ({
-  category: one(categories, {
-    fields: [products.categoryId],
-    references: [categories.id],
+export const productRelations = relations(productTable, ({ one, many }) => ({
+  category: one(categoryTable, {
+    fields: [productTable.categoryId],
+    references: [categoryTable.id],
   }),
-  productTags: many(productTags),
+  productTags: many(productTagTable),
 }));
 
-export const tagsRelations = relations(tags, ({ many }) => ({
-  productTags: many(productTags),
+export const tagRelations = relations(tagTable, ({ many }) => ({
+  productTags: many(productTagTable),
 }));
 
-export const productTagsRelations = relations(productTags, ({ one }) => ({
-  product: one(products, {
-    fields: [productTags.productId],
-    references: [products.id],
+export const productTagRelations = relations(productTagTable, ({ one }) => ({
+  product: one(productTable, {
+    fields: [productTagTable.productId],
+    references: [productTable.id],
   }),
-  tag: one(tags, {
-    fields: [productTags.tagId],
-    references: [tags.id],
+  tag: one(tagTable, {
+    fields: [productTagTable.tagId],
+    references: [tagTable.id],
   }),
 }));

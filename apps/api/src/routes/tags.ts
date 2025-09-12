@@ -1,9 +1,5 @@
 import { vValidator } from "@hono/valibot-validator";
-import {
-  categoryTable,
-  categoryInsertSchema,
-  categoryUpdateSchema,
-} from "@packages/schema";
+import { tagInsertSchema, tagTable, tagUpdateSchema } from "@packages/schema";
 import { and, count, eq, getTableColumns } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { factory } from "../types/env";
@@ -21,61 +17,38 @@ const app = factory
       {
         fields: {
           id: {
-            column: categoryTable.id,
+            column: tagTable.id,
             type: "number",
             sort: true,
             filters: ["eq"],
           },
           name: {
-            column: categoryTable.name,
+            column: tagTable.name,
             type: "string",
             sort: true,
             filters: ["like"],
-          },
-          isActive: {
-            column: categoryTable.isActive,
-            type: "boolean",
-            sort: true,
-            filters: ["eq"],
-          },
-          createdAt: {
-            column: categoryTable.createdAt,
-            type: "date",
-            sort: true,
-          },
-          updatedAt: {
-            column: categoryTable.updatedAt,
-            type: "date",
-            sort: true,
           },
         },
         defaultSort: [{ field: "id", order: "asc" }],
       }
     );
 
-    const base = db
-      .select({
-        ...getTableColumns(categoryTable),
-      })
-      .from(categoryTable);
+    const base = db.select({ ...getTableColumns(tagTable) }).from(tagTable);
 
     const totalPromise = db
       .select({ count: count() })
-      .from(categoryTable)
+      .from(tagTable)
       .where(where);
 
-    const categoriesPromise = (where ? base.where(where) : base)
+    const tagsPromise = (where ? base.where(where) : base)
       .orderBy(...orderBy)
       .limit(limit)
       .offset(offset);
 
-    const [total, categories] = await Promise.all([
-      totalPromise,
-      categoriesPromise,
-    ]);
+    const [total, tags] = await Promise.all([totalPromise, tagsPromise]);
 
     setTotalHeaders(c, total[0]?.count ?? 0);
-    return c.json(successResponse(categories));
+    return c.json(successResponse(tags));
   })
 
   .get("/:id", async (c) => {
@@ -87,27 +60,26 @@ const app = factory
 
     const db = c.get("db");
 
-    const category = await db.query.categoryTable.findFirst({
-      where: and(eq(categoryTable.id, id)),
+    const tag = await db.query.tagTable.findFirst({
+      where: and(eq(tagTable.id, id)),
     });
 
-    if (!category) {
-      throw new HTTPException(404, { message: "Category not found" });
+    if (!tag) {
+      throw new HTTPException(404, { message: "Tag not found" });
     }
 
-    return c.json(successResponse(category));
+    return c.json(successResponse(tag));
   })
 
-  .post("/", vValidator("json", categoryInsertSchema), async (c) => {
+  .post("/", vValidator("json", tagInsertSchema), async (c) => {
     const data = c.req.valid("json");
     const db = c.get("db");
 
-    const [category] = await db.insert(categoryTable).values(data).returning();
-
-    return c.json(successResponse(category), 201);
+    const [tab] = await db.insert(tagTable).values(data).returning();
+    return c.json(successResponse(tab), 201);
   })
 
-  .patch("/:id", vValidator("json", categoryUpdateSchema), async (c) => {
+  .patch("/:id", vValidator("json", tagUpdateSchema), async (c) => {
     const idStr = c.req.param("id");
     const id = Number(idStr);
     if (!Number.isInteger(id)) {
@@ -117,17 +89,17 @@ const app = factory
     const data = c.req.valid("json");
     const db = c.get("db");
 
-    const [category] = await db
-      .update(categoryTable)
+    const [tag] = await db
+      .update(tagTable)
       .set(data)
-      .where(eq(categoryTable.id, id))
+      .where(eq(tagTable.id, id))
       .returning();
 
-    if (!category) {
-      throw new HTTPException(404, { message: "Category not found" });
+    if (!tag) {
+      throw new HTTPException(404, { message: "Tag not found" });
     }
 
-    return c.json(successResponse(category));
+    return c.json(successResponse(tag));
   })
 
   .delete("/:id", async (c) => {
@@ -139,13 +111,13 @@ const app = factory
 
     const db = c.get("db");
 
-    const [category] = await db
-      .delete(categoryTable)
-      .where(eq(categoryTable.id, id))
+    const [tag] = await db
+      .delete(tagTable)
+      .where(eq(tagTable.id, id))
       .returning();
 
-    if (!category) {
-      throw new HTTPException(404, { message: "Category not found" });
+    if (!tag) {
+      throw new HTTPException(404, { message: "Tag not found" });
     }
 
     return c.body(null, 204);

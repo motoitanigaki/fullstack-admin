@@ -1,13 +1,13 @@
 import type {
-  categories,
-  products,
-  productTags,
+  categoryTable,
+  productTable,
+  productTagTable,
   statusEnum,
-  tags,
+  tagTable,
 } from "@packages/schema";
 
 export type Status = (typeof statusEnum.enumValues)[number];
-export type Category = typeof categories.$inferSelect;
-export type Product = typeof products.$inferSelect;
-export type Tag = typeof tags.$inferSelect;
-export type ProductTag = typeof productTags.$inferSelect;
+export type Category = typeof categoryTable.$inferSelect;
+export type Product = typeof productTable.$inferSelect;
+export type Tag = typeof tagTable.$inferSelect;
+export type ProductTag = typeof productTagTable.$inferSelect;

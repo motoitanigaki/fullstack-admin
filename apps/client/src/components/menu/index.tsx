@@ -1,5 +1,12 @@
 import { useMenu } from "@refinedev/core";
-import { Box, ChevronLeft, ChevronRight, Home, Network } from "lucide-react";
+import {
+  Box,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Network,
+  Tag,
+} from "lucide-react";
 import { NavLink } from "react-router";
 import {
   Sidebar,
@@ -18,6 +25,7 @@ import {
 const iconMap: Record<string, React.ElementType> = {
   products: Box,
   categories: Network,
+  tags: Tag,
 };
 
 export const Menu = () => {

@@ -3,17 +3,19 @@ import { productInsertSchema } from "@packages/schema";
 import { useNavigation } from "@refinedev/core";
 import {
   DateTimeField,
+  MultiSelectField,
   NumberField,
   ResourceForm,
   SelectField,
   TextareaField,
   TextField,
 } from "@/components/resource-form";
-import { useCategorySelect } from "@/hooks/use-resource-select";
+import { useCategorySelect, useTagSelect } from "@/hooks/use-resource-select";
 
 export const ProductCreate = () => {
   const { list } = useNavigation();
   const categories = useCategorySelect();
+  const tags = useTagSelect();
 
   return (
     <ResourceForm
@@ -37,6 +39,12 @@ export const ProductCreate = () => {
         options={status.map((s) => ({ value: s, label: s }))}
       />
       <DateTimeField name="availableAt" label="Available At" />
+      <MultiSelectField
+        name="tagIds"
+        label="Tags"
+        options={tags.options}
+        onSearch={tags.onSearch}
+      />
     </ResourceForm>
   );
 };

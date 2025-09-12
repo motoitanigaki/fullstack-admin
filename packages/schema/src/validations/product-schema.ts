@@ -21,6 +21,9 @@ export const productInsertSchema = v.object({
   stock: v.optional(v.pipe(v.number(), v.integer("Stock must be an integer"))),
   status: v.optional(v.picklist(status)),
   availableAt: v.optional(availableAtSchema),
+  tagIds: v.optional(
+    v.array(v.pipe(v.number(), v.integer("Tag ID must be an integer"))),
+  ),
 });
 
 export const productUpdateSchema = v.object({
@@ -38,4 +41,7 @@ export const productUpdateSchema = v.object({
   stock: v.optional(v.pipe(v.number(), v.integer("Stock must be an integer"))),
   status: v.optional(v.picklist(status)),
   availableAt: v.optional(availableAtSchema),
+  tagIds: v.optional(
+    v.array(v.pipe(v.number(), v.integer("Tag ID must be an integer"))),
+  ),
 });

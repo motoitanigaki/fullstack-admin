@@ -20,3 +20,23 @@ export function useCategorySelect() {
         : [],
   });
 }
+
+export function useTagSelect() {
+  return useSelect({
+    resource: "tags",
+    optionLabel: "name",
+    optionValue: "id",
+    sorters: [{ field: "id", order: "asc" }],
+    pagination: { pageSize: 50 },
+    onSearch: (value: string) =>
+      value
+        ? [
+            {
+              field: "name",
+              operator: "contains",
+              value,
+            },
+          ]
+        : [],
+  });
+}

@@ -12,3 +12,4 @@ export const setupValidationCustomMessages = () => {
 
 export * from "./category-schema";
 export * from "./product-schema";
+export * from "./tag-schema";

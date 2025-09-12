@@ -1,8 +1,9 @@
 import { vValidator } from "@hono/valibot-validator";
 import {
-  categories,
+  categoryTable,
   productInsertSchema,
-  products,
+  productTable,
+  productTagTable,
   productUpdateSchema,
 } from "@packages/schema";
 import { and, count, eq, getTableColumns } from "drizzle-orm";
@@ -22,79 +23,90 @@ const app = factory
       {
         fields: {
           id: {
-            column: products.id,
+            column: productTable.id,
             type: "number",
             sort: true,
             filters: ["eq"],
           },
           categoryId: {
-            column: products.categoryId,
+            column: productTable.categoryId,
             type: "number",
             sort: true,
             filters: ["eq"],
           },
           name: {
-            column: products.name,
+            column: productTable.name,
             type: "string",
             sort: true,
             filters: ["like"],
           },
           status: {
-            column: products.status,
+            column: productTable.status,
             type: "string",
             sort: true,
             filters: ["like", "eq"],
           },
           price: {
-            column: products.price,
+            column: productTable.price,
             type: "number",
             sort: true,
             filters: ["gte", "lte"],
           },
           stock: {
-            column: products.stock,
+            column: productTable.stock,
             type: "number",
             sort: true,
             filters: ["gte", "lte"],
           },
           availableAt: {
-            column: products.availableAt,
+            column: productTable.availableAt,
             type: "date",
             sort: true,
             filters: ["gte", "lte"],
           },
-          createdAt: { column: products.createdAt, type: "date", sort: true },
-          updatedAt: { column: products.updatedAt, type: "date", sort: true },
+          createdAt: {
+            column: productTable.createdAt,
+            type: "date",
+            sort: true,
+          },
+          updatedAt: {
+            column: productTable.updatedAt,
+            type: "date",
+            sort: true,
+          },
         },
         defaultSort: [{ field: "id", order: "asc" }],
-      },
+      }
     );
 
     const base = db
       .select({
-        ...getTableColumns(products),
+        ...getTableColumns(productTable),
         category: {
-          id: categories.id,
-          name: categories.name,
+          id: categoryTable.id,
+          name: categoryTable.name,
         },
       })
-      .from(products)
-      .innerJoin(categories, eq(products.categoryId, categories.id));
+      .from(productTable)
+      .innerJoin(categoryTable, eq(productTable.categoryId, categoryTable.id));
 
     const totalPromise = db
       .select({ count: count() })
-      .from(products)
+      .from(productTable)
       .where(where);
 
-    const itemsPromise = (where ? base.where(where) : base)
+    const productsPromise = (where ? base.where(where) : base)
       .orderBy(...orderBy)
       .limit(limit)
       .offset(offset);
 
-    const [total, items] = await Promise.all([totalPromise, itemsPromise]);
+    const [total, products] = await Promise.all([
+      totalPromise,
+      productsPromise,
+    ]);
 
     setTotalHeaders(c, total[0]?.count ?? 0);
-    return c.json(successResponse(items));
+    return c.json(successResponse(products));
   })
 
   .get("/:id", async (c) => {
@@ -106,36 +118,51 @@ const app = factory
 
     const db = c.get("db");
 
-    const product = await db.query.products.findFirst({
-      where: and(eq(products.id, id)),
-      with: { category: true },
+    const product = await db.query.productTable.findFirst({
+      where: and(eq(productTable.id, id)),
+      with: {
+        category: true,
+        productTags: { with: { tag: true } },
+      },
     });
 
     if (!product) {
       throw new HTTPException(404, { message: "Product not found" });
     }
 
-    return c.json(successResponse(product));
+    const { productTags, category, ...productData } = product;
+    return c.json(
+      successResponse({
+        ...productData,
+        category,
+        tagIds: productTags.map((pt) => pt.tag.id),
+        tags: productTags.map((pt) => ({
+          id: pt.tag.id,
+          name: pt.tag.name,
+        })),
+      })
+    );
   })
 
   .post("/", vValidator("json", productInsertSchema), async (c) => {
     const data = c.req.valid("json");
     const db = c.get("db");
 
-    const [item] = await db
-      .insert(products)
-      .values({
-        categoryId: data.categoryId,
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        stock: data.stock,
-        status: data.status,
-        availableAt: data.availableAt,
-      })
+    const { tagIds, ...productData } = data;
+    const [product] = await db
+      .insert(productTable)
+      .values(productData)
       .returning();
 
-    return c.json(successResponse(item), 201);
+    if (tagIds && tagIds.length > 0) {
+      await db
+        .insert(productTagTable)
+        .values(
+          tagIds.map((tagId: number) => ({ productId: product.id, tagId }))
+        );
+    }
+
+    return c.json(successResponse(product), 201);
   })
 
   .patch("/:id", vValidator("json", productUpdateSchema), async (c) => {
@@ -148,17 +175,28 @@ const app = factory
     const data = c.req.valid("json");
     const db = c.get("db");
 
-    const [item] = await db
-      .update(products)
-      .set(data)
-      .where(eq(products.id, id))
+    const { tagIds, ...productData } = data;
+    const [product] = await db
+      .update(productTable)
+      .set(productData)
+      .where(eq(productTable.id, id))
       .returning();
 
-    if (!item) {
+    if (!product) {
       throw new HTTPException(404, { message: "Product not found" });
     }
 
-    return c.json(successResponse(item));
+    if (tagIds !== undefined) {
+      await db.delete(productTagTable).where(eq(productTagTable.productId, id));
+
+      if (tagIds.length > 0) {
+        await db
+          .insert(productTagTable)
+          .values(tagIds.map((tagId: number) => ({ productId: id, tagId })));
+      }
+    }
+
+    return c.json(successResponse(product));
   })
 
   .delete("/:id", async (c) => {
@@ -170,12 +208,12 @@ const app = factory
 
     const db = c.get("db");
 
-    const [item] = await db
-      .delete(products)
-      .where(eq(products.id, id))
+    const [product] = await db
+      .delete(productTable)
+      .where(eq(productTable.id, id))
       .returning();
 
-    if (!item) {
+    if (!product) {
       throw new HTTPException(404, { message: "Product not found" });
     }
 
